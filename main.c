@@ -59,13 +59,16 @@ void display(void)
 
 void drawLine(void)
 {
-	if(!ptCompare(linestart, lineend) &&
-		 clipLine(&linestart, &lineend)) {
+	struct pt start, end;
+	start = linestart;
+	end = lineend;
+	if(!ptCompare(start, end) &&
+		 clipLine(&start, &end)) {
 		glColor3f(1.0f, 0.0f, 0.0f);
 		glBegin(GL_POINTS);
 
-		GLint deltax = lineend.x - linestart.x,
-			deltay = lineend.y - linestart.y,
+		GLint deltax = end.x - start.x,
+			deltay = end.y - start.y,
 			x = 0,
 			y = 0;
 	
@@ -73,13 +76,13 @@ void drawLine(void)
 
 		if(m == INFINITY) {
 			while(y < deltay) {
-				glVertex2i(linestart.x, linestart.y + y);
+				glVertex2i(start.x, start.y + y);
 				y++;
 			}
 		}
 		else if(m == -INFINITY) {
 			while(y > deltay) {
-				glVertex2i(linestart.x, linestart.y + y);
+				glVertex2i(start.x, start.y + y);
 				y--;
 			}
 		}
@@ -89,12 +92,12 @@ void drawLine(void)
 				x--;
 				int cnt = 0;
 				do {
-					glVertex2i(linestart.x + x, linestart.y + y);
+					glVertex2i(start.x + x, start.y + y);
 					cnt++;
 					y--;
 				} while(cnt < m + residual);
 				do {
-					glVertex2i(linestart.x + x, linestart.y + y);
+					glVertex2i(start.x + x, start.y + y);
 					cnt--;
 					y++;
 				} while(cnt > m + residual);
@@ -104,12 +107,12 @@ void drawLine(void)
 				x++;
 				int cnt = 0;
 				do {
-					glVertex2i(linestart.x + x, linestart.y + y);
+					glVertex2i(start.x + x, start.y + y);
 					cnt++;
 					y++;
 				} while(cnt < m + residual);
 				do {
-					glVertex2i(linestart.x + x, linestart.y + y);
+					glVertex2i(start.x + x, start.y + y);
 					cnt--;
 					y--;
 				} while(cnt > m + residual);
@@ -122,10 +125,6 @@ void drawLine(void)
 
 enum Region pointRegion(struct pt point)
 {
-	/* I'm not certain I see the point of this function
-	 * when I need to peform comparisons on the results anyways.
-	 * That and I try to avoid architecture dependent things
-	 * like bit manipulations */
 	enum Region reg = CENTER;
 	if(point.x < OFFWIDTH)
 		reg = LEFT;
@@ -145,13 +144,28 @@ bool clipLine(struct pt *p1, struct pt *p2)
 	 * With the loop like this, the compiler can
 	 * unroll it more easily*/
 	int i;
+	printf("point 1: %d,   %d\n"
+				 "point 2: %d,   %d\n",
+				 p1->x, p1->y,
+				 p2->x, p2->y);
 	for(i = 0; i < 2; i++) {
 		enum Region reg1 = pointRegion(*p1),
 			reg2 = pointRegion(*p2);
-		if(reg1 & reg2)
+		printf("reg1: %d,  reg2: %d\n", reg1, reg2);
+		if(reg1 & reg2) {
+			printf("exiting false\npoint 1: %d,   %d\n"
+						 "point 2: %d,   %d\n\n",
+						 p1->x, p1->y,
+						 p2->x, p2->y);
 			return false;
-		if(!reg1 && !reg2)
+		}
+		if(!reg1 && !reg2) {
+			printf("exiting true\npoint 1: %d,   %d\n"
+						 "point 2: %d,   %d\n\n",
+						 p1->x, p1->y,
+						 p2->x, p2->y);
 			return true;
+		}
 		if(reg1 & LEFT) {
 			p1->y = interpolateX(*p1, *p2, OFFWIDTH);
 			p1->x = OFFWIDTH;
@@ -160,7 +174,7 @@ bool clipLine(struct pt *p1, struct pt *p2)
 			p1->y = interpolateX(*p1, *p2, OFFWIDTH + VIEWWIDTH);
 			p1->x = OFFWIDTH + VIEWWIDTH;
 		}
-		if(reg1 & TOP) {
+		else if(reg1 & TOP) {
 			p1->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
 			p1->y = OFFHEIGHT + VIEWHEIGHT;
 		}
@@ -168,22 +182,77 @@ bool clipLine(struct pt *p1, struct pt *p2)
 			p1->x = interpolateY(*p1, *p2, OFFHEIGHT);
 			p1->y = OFFHEIGHT;
 		}
+
 		if(reg2 & LEFT) {
+			printf("Setting y in LEFT\n");
 			p2->y = interpolateX(*p1, *p2, OFFWIDTH);
 			p2->x = OFFWIDTH;
 		}
 		else if(reg2 & RIGHT) {
+			printf("Setting y in RIGHT\n");
 			p2->y = interpolateX(*p1, *p2, OFFWIDTH + VIEWWIDTH);
 			p2->x = OFFWIDTH + VIEWWIDTH;
 		}
-		if(reg2 & TOP) {
+		else if(reg2 & TOP) {
+			printf("Setting x in TOP\n");
 			p2->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
 			p2->y = OFFHEIGHT + VIEWHEIGHT;
 		}
 		else if(reg2 & BOTTOM) {
+			printf("Setting x in BOTTOM\n");
 			p2->x = interpolateY(*p1, *p2, OFFHEIGHT);
 			p2->y = OFFHEIGHT;
 		}
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
+	}
+	puts("");
+	return true;
+}
+
+bool clipLine2(struct pt *p1, struct pt *p2)
+{
+	/* Better (faster) algorithm: No looping. */
+	enum Region reg1 = pointRegion(*p1),
+		reg2 = pointRegion(*p2);
+	if(reg1 & reg2)
+		return false;
+	if(!reg1 && !reg2)
+		return true;
+	if(p1->x < OFFWIDTH) {
+		p1->y = interpolateX(*p1, *p2, OFFWIDTH);
+		p1->x = OFFWIDTH;
+	}
+	else if(p1->x > OFFWIDTH + VIEWWIDTH) {
+		p1->y = interpolateX(*p1, *p2, OFFWIDTH + VIEWWIDTH);
+		p1->x = OFFWIDTH + VIEWWIDTH;
+	}
+	if(p1->y < OFFHEIGHT) {
+		p1->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
+		p1->y = OFFHEIGHT + VIEWHEIGHT;
+	}
+	else if(p1->y > OFFHEIGHT + VIEWHEIGHT) {
+		p1->x = interpolateY(*p1, *p2, OFFHEIGHT);
+		p1->y = OFFHEIGHT;
+	}
+
+	if(p2->x < OFFWIDTH) {
+		p2->y = interpolateX(*p1, *p2, OFFWIDTH);
+		p2->x = OFFWIDTH;
+	}
+	else if(p2->x > OFFWIDTH + VIEWWIDTH) {
+		p2->y = interpolateX(*p1, *p2, OFFWIDTH + VIEWWIDTH);
+		p2->x = OFFWIDTH + VIEWWIDTH;
+	}
+	if(p2->y < OFFHEIGHT) {
+		p2->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
+		p2->y = OFFHEIGHT + VIEWHEIGHT;
+	}
+	else if(p2->y > OFFHEIGHT + VIEWHEIGHT) {
+		p2->x = interpolateY(*p1, *p2, OFFHEIGHT);
+		p2->y = OFFHEIGHT;
 	}
 	return true;
 }
