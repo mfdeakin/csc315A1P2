@@ -41,6 +41,7 @@ void drawCircle(float radius);
 void drawCircle2(float radius);
 void drawLine(void);
 bool clipLine(struct pt *p1, struct pt *p2);
+bool clipLine2(struct pt *p1, struct pt *p2);
 void display(void);
 void resize(GLsizei width, GLsizei height);
 void mpress(int btn, int state, int x, int y);
@@ -63,7 +64,7 @@ void drawLine(void)
 	start = linestart;
 	end = lineend;
 	if(!ptCompare(start, end) &&
-		 clipLine(&start, &end)) {
+		 clipLine2(&start, &end)) {
 		glColor3f(1.0f, 0.0f, 0.0f);
 		glBegin(GL_POINTS);
 
@@ -148,7 +149,7 @@ bool clipLine(struct pt *p1, struct pt *p2)
 				 "point 2: %d,   %d\n",
 				 p1->x, p1->y,
 				 p2->x, p2->y);
-	for(i = 0; i < 2; i++) {
+	for(;;) {
 		enum Region reg1 = pointRegion(*p1),
 			reg2 = pointRegion(*p2);
 		printf("reg1: %d,  reg2: %d\n", reg1, reg2);
@@ -167,39 +168,43 @@ bool clipLine(struct pt *p1, struct pt *p2)
 			return true;
 		}
 		if(reg1 & LEFT) {
+			printf("Setting y1 in LEFT\n");
 			p1->y = interpolateX(*p1, *p2, OFFWIDTH);
 			p1->x = OFFWIDTH;
 		}
 		else if(reg1 & RIGHT) {
+			printf("Setting y1 in RIGHT\n");
 			p1->y = interpolateX(*p1, *p2, OFFWIDTH + VIEWWIDTH);
 			p1->x = OFFWIDTH + VIEWWIDTH;
 		}
-		else if(reg1 & TOP) {
+		if(reg1 & TOP) {
+			printf("Setting x1 in TOP\n");
 			p1->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
 			p1->y = OFFHEIGHT + VIEWHEIGHT;
 		}
 		else if(reg1 & BOTTOM) {
+			printf("Setting x1 in BOTTOM\n");
 			p1->x = interpolateY(*p1, *p2, OFFHEIGHT);
 			p1->y = OFFHEIGHT;
 		}
 
 		if(reg2 & LEFT) {
-			printf("Setting y in LEFT\n");
+			printf("Setting y2 in LEFT\n");
 			p2->y = interpolateX(*p1, *p2, OFFWIDTH);
 			p2->x = OFFWIDTH;
 		}
 		else if(reg2 & RIGHT) {
-			printf("Setting y in RIGHT\n");
+			printf("Setting y2 in RIGHT\n");
 			p2->y = interpolateX(*p1, *p2, OFFWIDTH + VIEWWIDTH);
 			p2->x = OFFWIDTH + VIEWWIDTH;
 		}
-		else if(reg2 & TOP) {
-			printf("Setting x in TOP\n");
+		if(reg2 & TOP) {
+			printf("Setting x2 in TOP\n");
 			p2->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
 			p2->y = OFFHEIGHT + VIEWHEIGHT;
 		}
 		else if(reg2 & BOTTOM) {
-			printf("Setting x in BOTTOM\n");
+			printf("Setting x2 in BOTTOM\n");
 			p2->x = interpolateY(*p1, *p2, OFFHEIGHT);
 			p2->y = OFFHEIGHT;
 		}
@@ -215,45 +220,99 @@ bool clipLine(struct pt *p1, struct pt *p2)
 bool clipLine2(struct pt *p1, struct pt *p2)
 {
 	/* Better (faster) algorithm: No looping. */
+	printf("clipLine2\n");
 	enum Region reg1 = pointRegion(*p1),
 		reg2 = pointRegion(*p2);
-	if(reg1 & reg2)
+	printf("point 1: %d,   %d\n"
+				 "point 2: %d,   %d\n",
+				 p1->x, p1->y,
+				 p2->x, p2->y);
+	if(reg1 & reg2) {
+		printf("Return False\n");
 		return false;
+	}
 	if(!reg1 && !reg2)
 		return true;
 	if(p1->x < OFFWIDTH) {
+		printf("Setting y1 in LEFT\n");
 		p1->y = interpolateX(*p1, *p2, OFFWIDTH);
 		p1->x = OFFWIDTH;
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
 	}
 	else if(p1->x > OFFWIDTH + VIEWWIDTH) {
+		printf("Setting y1 in RIGHT\n");
 		p1->y = interpolateX(*p1, *p2, OFFWIDTH + VIEWWIDTH);
 		p1->x = OFFWIDTH + VIEWWIDTH;
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
 	}
 	if(p1->y < OFFHEIGHT) {
-		p1->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
-		p1->y = OFFHEIGHT + VIEWHEIGHT;
-	}
-	else if(p1->y > OFFHEIGHT + VIEWHEIGHT) {
+		printf("Setting x1 in BOTTOM\n");
 		p1->x = interpolateY(*p1, *p2, OFFHEIGHT);
 		p1->y = OFFHEIGHT;
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
+	}
+	else if(p1->y > OFFHEIGHT + VIEWHEIGHT) {
+		printf("Setting x1 in TOP\n");
+		p1->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
+		p1->y = OFFHEIGHT + VIEWHEIGHT;
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
 	}
 
 	if(p2->x < OFFWIDTH) {
+		printf("Setting y2 in LEFT\n");
 		p2->y = interpolateX(*p1, *p2, OFFWIDTH);
 		p2->x = OFFWIDTH;
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
 	}
 	else if(p2->x > OFFWIDTH + VIEWWIDTH) {
+		printf("Setting y2 in RIGHT\n");
 		p2->y = interpolateX(*p1, *p2, OFFWIDTH + VIEWWIDTH);
 		p2->x = OFFWIDTH + VIEWWIDTH;
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
 	}
 	if(p2->y < OFFHEIGHT) {
-		p2->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
-		p2->y = OFFHEIGHT + VIEWHEIGHT;
-	}
-	else if(p2->y > OFFHEIGHT + VIEWHEIGHT) {
+		printf("Setting x2 in BOTTOM\n");
 		p2->x = interpolateY(*p1, *p2, OFFHEIGHT);
 		p2->y = OFFHEIGHT;
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
 	}
+	else if(p2->y > OFFHEIGHT + VIEWHEIGHT) {
+		printf("Setting x2 in TOP\n");
+		p2->x = interpolateY(*p1, *p2, OFFHEIGHT + VIEWHEIGHT);
+		p2->y = OFFHEIGHT + VIEWHEIGHT;
+		printf("point 1: %d,   %d\n"
+					 "point 2: %d,   %d\n",
+					 p1->x, p1->y,
+					 p2->x, p2->y);
+	}
+	reg1 = pointRegion(*p1);
+	reg2 = pointRegion(*p2);
+	if(reg1 & reg2) {
+		printf("Return False\n\n");
+		return false;
+	}
+	printf("Return True\n\n");
 	return true;
 }
 
